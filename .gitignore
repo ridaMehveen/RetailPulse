@@ -1,0 +1,9 @@
+﻿.venv/
+.venv_lstm/
+__pycache__/
+*.py[cod]
+.env
+.streamlit/secrets.toml
+online_retail_II.csv
+retailpulse_cleaned.csv
+retailpulse_data.zip
