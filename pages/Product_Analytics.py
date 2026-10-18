@@ -31,7 +31,7 @@ div[data-testid="stMetric"] {
 
 @st.cache_data
 def load_data():
-    df = pd.read_csv("retailpulse_cleaned.csv")
+    df = pd.read_csv("retailpulse_cleaned.csv.gz")
     df["InvoiceDate"] = pd.to_datetime(df["InvoiceDate"], dayfirst=True)
     df["Sales"] = df["Quantity"] * df["Price"]
     return df

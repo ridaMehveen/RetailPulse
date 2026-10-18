@@ -44,7 +44,7 @@ div[data-testid="stMetricValue"] {
 
 @st.cache_data
 def load_data():
-    data = pd.read_csv("retailpulse_cleaned.csv")
+    data = pd.read_csv("retailpulse_cleaned.csv.gz")
     data["InvoiceDate"] = pd.to_datetime(
         data["InvoiceDate"], dayfirst=True
     )
