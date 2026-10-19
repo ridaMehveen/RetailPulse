@@ -36,6 +36,7 @@ pages = {
         st.Page("pages/Country_Analysis.py", title="Country Analysis", icon="🌍"),
         st.Page("pages/Inventory_Dashboard.py", title="Inventory Dashboard", icon="📦"),
         st.Page("pages/Forecast_Dashboard.py", title="Demand Forecast", icon="📈"),
+        st.Page("pages/Model_Monitoring.py", title="Model Monitoring", icon="🩺"),
     ],
 }
 
