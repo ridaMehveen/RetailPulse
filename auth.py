@@ -187,33 +187,11 @@ body:has([data-testid="stForm"]) [data-testid="stSidebar"] {
         )
 
 
+
 def require_login():
     if not st.session_state.get("rp_access_token"):
         show_login()
         st.stop()
 
-    st.sidebar.caption(
-        f"Signed in: {st.session_state.get('rp_user_email', 'User')}"
-    )
-
-    if st.sidebar.button("Log out", use_container_width=True):
-        try:
-            client = get_supabase_client()
-            client.auth.set_session(
-                st.session_state.get("rp_access_token", ""),
-                st.session_state.get("rp_refresh_token", ""),
-            )
-            client.auth.sign_out()
-        except Exception:
-            pass
-
-        for key in (
-            "rp_access_token",
-            "rp_refresh_token",
-            "rp_user_email",
-        ):
-            st.session_state.pop(key, None)
-
-        st.rerun()
 def is_logged_in():
     return bool(st.session_state.get("rp_access_token"))
