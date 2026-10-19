@@ -1,6 +1,7 @@
 
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 
 st.set_page_config(
     page_title="RetailPulse | Retail Intelligence",
@@ -12,7 +13,6 @@ st.set_page_config(
 # ---------- CUSTOM DESIGN ----------
 st.markdown("""
 <style>
-/* Main background */
 .stApp {
     background: linear-gradient(
         135deg, #0b1020 0%, #111a30 55%, #17152d 100%
@@ -21,9 +21,8 @@ st.markdown("""
 }
 
 .block-container {
-    padding-top: 1.8rem;
-    padding-bottom: 2rem;
-    max-width: 1500px;
+    padding: 1.8rem clamp(1rem, 2.5vw, 2rem) 2rem;
+    max-width: 1800px;
 }
 
 /* Sidebar */
@@ -41,11 +40,6 @@ st.markdown("""
     color: #e2e8f0 !important;
 }
 
-[data-testid="stSidebarNav"] span {
-    color: #e2e8f0 !important;
-}
-
-/* Sidebar inputs */
 [data-testid="stSidebar"] [data-baseweb="select"] {
     background-color: #151f35;
     border-radius: 8px;
@@ -53,7 +47,7 @@ st.markdown("""
 
 [data-testid="stSidebar"] [data-testid="stDateInput"] input {
     background: #151f35;
-    color: #f1f5f9;
+    color: #f1f5f9 !important;
     border-color: #394866;
 }
 
@@ -71,7 +65,7 @@ st.markdown("""
 
 .hero h1 {
     color: #ffffff !important;
-    font-size: 2.4rem;
+    font-size: clamp(2rem, 3vw, 2.7rem);
     font-weight: 750;
     margin: 0 0 12px 0;
 }
@@ -84,18 +78,17 @@ st.markdown("""
 
 /* Headings and supporting text */
 h1, h2, h3, h4 {
-    color: #f1f5f9;
-}
-
-[data-testid="stMarkdownContainer"] p {
-    color: #e2e8f0;
+    color: #f1f5f9 !important;
 }
 
 [data-testid="stCaptionContainer"] {
     color: #b8c5df !important;
 }
 
-/* Section heading */
+[data-testid="stMarkdownContainer"] p {
+    color: #e2e8f0;
+}
+
 .section-title {
     font-size: 1.4rem;
     font-weight: 700;
@@ -104,37 +97,39 @@ h1, h2, h3, h4 {
     color: #eef2ff;
 }
 
-/* Native Streamlit KPI cards */
+/* KPI cards */
 div[data-testid="stMetric"] {
-    background: linear-gradient(145deg, #17233b, #151d32);
+    background: linear-gradient(145deg, #192742, #151d32);
     border: 1px solid #354363;
-    padding: 18px 18px 16px 18px;
+    padding: 18px;
     border-radius: 16px;
     min-height: 112px;
     box-shadow: 0 5px 18px rgba(0, 0, 0, 0.12);
 }
 
-div[data-testid="stMetricLabel"],
-div[data-testid="stMetricLabel"] p,
-div[data-testid="stMetricLabel"] label {
-    color: #d7e0f4 !important;
+div[data-testid="stMetric"] [data-testid="stMetricLabel"],
+div[data-testid="stMetric"] [data-testid="stMetricLabel"] p,
+div[data-testid="stMetric"] [data-testid="stMetricLabel"] label {
+    color: #e2e8f0 !important;
+    -webkit-text-fill-color: #e2e8f0 !important;
     font-size: 0.92rem !important;
+    font-weight: 600 !important;
+    opacity: 1 !important;
 }
 
 div[data-testid="stMetricValue"],
 div[data-testid="stMetricValue"] div {
     color: #ffffff !important;
-    font-weight: 700;
+    -webkit-text-fill-color: #ffffff !important;
+    font-weight: 700 !important;
 }
 
 /* Chart containers */
-div[data-testid="stVegaLiteChart"],
-div[data-testid="stArrowVegaLiteChart"],
 div[data-testid="stPlotlyChart"] {
     background: #151f35;
     border: 1px solid #303d5a;
     border-radius: 14px;
-    padding: 10px;
+    padding: 8px;
 }
 
 /* Tables */
@@ -175,7 +170,6 @@ div[data-testid="stDataFrame"] {
     border: 1px solid #8b7cf6 !important;
 }
 
-/* Dividers */
 hr {
     border-color: #303d5a;
 }
@@ -186,8 +180,7 @@ hr {
 # ---------- DATA ----------
 @st.cache_data
 def load_data():
-    data_path = "retailpulse_cleaned.csv.gz"
-    data = pd.read_csv(data_path)
+    data = pd.read_csv("retailpulse_cleaned.csv.gz")
 
     data["InvoiceDate"] = pd.to_datetime(
         data["InvoiceDate"],
@@ -195,16 +188,23 @@ def load_data():
         errors="coerce",
     )
 
-    data["Sales"] = pd.to_numeric(data["Sales"], errors="coerce")
-    data["Quantity"] = pd.to_numeric(data["Quantity"], errors="coerce")
+    data["Sales"] = pd.to_numeric(
+        data["Sales"], errors="coerce"
+    )
+    data["Quantity"] = pd.to_numeric(
+        data["Quantity"], errors="coerce"
+    )
 
-    data = data.dropna(subset=["InvoiceDate", "Sales", "Quantity"])
+    data = data.dropna(
+        subset=["InvoiceDate", "Sales", "Quantity"]
+    )
+
     return data
 
 
 df = load_data()
 
-# Exclude cancellation invoices for the main sales view
+# Exclude cancellation invoices from the main sales view.
 sales = df[
     ~df["Invoice"].astype(str).str.startswith("C")
 ].copy()
@@ -255,6 +255,44 @@ st.sidebar.divider()
 st.sidebar.caption("RetailPulse • Analytics Workspace")
 
 
+# ---------- DARK CHART THEME ----------
+def style_dark_chart(fig, height=340):
+    fig.update_layout(
+        template="plotly_dark",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(
+            family="Arial, sans-serif",
+            color="#e2e8f0",
+            size=12,
+        ),
+        height=height,
+        margin=dict(l=20, r=20, t=25, b=35),
+        hoverlabel=dict(
+            bgcolor="#202d47",
+            font_color="#ffffff",
+            bordercolor="#526586",
+        ),
+    )
+
+    fig.update_xaxes(
+        showgrid=False,
+        zeroline=False,
+        tickfont=dict(color="#cbd5e1"),
+        title_font=dict(color="#e2e8f0"),
+    )
+
+    fig.update_yaxes(
+        showgrid=True,
+        gridcolor="rgba(148,163,184,0.18)",
+        zeroline=False,
+        tickfont=dict(color="#cbd5e1"),
+        title_font=dict(color="#e2e8f0"),
+    )
+
+    return fig
+
+
 # ---------- HEADER ----------
 st.markdown("""
 <div class="hero">
@@ -302,25 +340,55 @@ left, right = st.columns([1.6, 1])
 with left:
     monthly_sales = (
         filtered_sales
-        .groupby(filtered_sales["InvoiceDate"].dt.to_period("M"))["Sales"]
+        .groupby(
+            filtered_sales["InvoiceDate"].dt.to_period("M")
+        )["Sales"]
         .sum()
         .rename_axis("Month")
         .reset_index()
     )
 
-    monthly_sales["Month"] = monthly_sales["Month"].dt.to_timestamp()
+    monthly_sales["Month"] = (
+        monthly_sales["Month"].astype(str)
+    )
 
     st.markdown("#### Monthly Revenue Trend")
 
     if not monthly_sales.empty:
-        st.line_chart(
+        fig_monthly = px.line(
             monthly_sales,
             x="Month",
             y="Sales",
-            height=340,
+            markers=True,
+            labels={
+                "Month": "Month",
+                "Sales": "Revenue (£)",
+            },
+        )
+
+        fig_monthly.update_traces(
+            line=dict(color="#60a5fa", width=3),
+            marker=dict(color="#a78bfa", size=6),
+            hovertemplate=(
+                "Month: %{x}<br>"
+                "Revenue: £%{y:,.0f}"
+                "<extra></extra>"
+            ),
+        )
+
+        fig_monthly.update_layout(
+            xaxis_tickangle=-35,
+        )
+
+        style_dark_chart(fig_monthly, height=360)
+
+        st.plotly_chart(
+            fig_monthly,
+            use_container_width=True,
         )
     else:
         st.info("No sales data for the selected filters.")
+
 
 with right:
     top_products = (
@@ -328,12 +396,38 @@ with right:
         .sum()
         .nlargest(8)
         .sort_values()
+        .reset_index()
     )
 
     st.markdown("#### Top Products by Revenue")
 
     if not top_products.empty:
-        st.bar_chart(top_products, height=340)
+        fig_products = px.bar(
+            top_products,
+            x="Sales",
+            y="Description",
+            orientation="h",
+            labels={
+                "Sales": "Revenue (£)",
+                "Description": "Product",
+            },
+        )
+
+        fig_products.update_traces(
+            marker_color="#818cf8",
+            hovertemplate=(
+                "%{y}<br>"
+                "Revenue: £%{x:,.0f}"
+                "<extra></extra>"
+            ),
+        )
+
+        style_dark_chart(fig_products, height=360)
+
+        st.plotly_chart(
+            fig_products,
+            use_container_width=True,
+        )
     else:
         st.info("No product data available.")
 
@@ -349,13 +443,36 @@ country_sales = (
     .sum()
     .sort_values(ascending=False)
     .head(10)
+    .sort_values()
     .reset_index()
 )
 
 if not country_sales.empty:
-    st.bar_chart(
-        country_sales.set_index("Country"),
-        height=300,
+    fig_countries = px.bar(
+        country_sales,
+        x="Sales",
+        y="Country",
+        orientation="h",
+        labels={
+            "Sales": "Revenue (£)",
+            "Country": "Country",
+        },
+    )
+
+    fig_countries.update_traces(
+        marker_color="#34d399",
+        hovertemplate=(
+            "%{y}<br>"
+            "Revenue: £%{x:,.0f}"
+            "<extra></extra>"
+        ),
+    )
+
+    style_dark_chart(fig_countries, height=380)
+
+    st.plotly_chart(
+        fig_countries,
+        use_container_width=True,
     )
 else:
     st.info("No country data available for the selected filters.")
@@ -366,14 +483,17 @@ with st.expander("Explore filtered sales data"):
     st.dataframe(
         filtered_sales.head(500),
         use_container_width=True,
+        hide_index=True,
     )
+
     st.caption(
         "Showing up to 500 rows. Figures reflect the selected filters."
     )
 
+
+# ---------- FOOTER ----------
 st.caption(
     "RetailPulse | Historical retail analytics. "
     "Revenue and unit totals may include returns recorded on "
     "non-cancellation invoices."
 )
-
