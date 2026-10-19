@@ -1,12 +1,41 @@
 
 import streamlit as st
 import pandas as pd
+from auth import require_login
 
 st.set_page_config(
     page_title="RetailPulse - Inventory",
     page_icon="📦",
     layout="wide"
 )
+require_login()
+
+st.markdown("""
+<style>
+.stApp {
+    background: linear-gradient(135deg, #0b1020 0%, #111a30 55%, #17152d 100%);
+    color: #f1f5f9;
+}
+
+[data-testid="stSidebar"] {
+    background: #0a1020;
+}
+
+[data-testid="stMarkdownContainer"] p,
+[data-testid="stMarkdownContainer"] h1,
+[data-testid="stMarkdownContainer"] h2,
+[data-testid="stMarkdownContainer"] h3 {
+    color: #f1f5f9;
+}
+
+div[data-testid="stMetric"] {
+    background: #151f35;
+    border: 1px solid #303d5a;
+    padding: 15px;
+    border-radius: 14px;
+}
+</style>
+""", unsafe_allow_html=True)
 
 st.title("📦 Inventory & Demand Dashboard")
 st.caption("Product demand analysis and stock planning recommendations")

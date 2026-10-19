@@ -3,12 +3,16 @@ import streamlit as st
 import pandas as pd
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
+from auth import require_login
+
 
 st.set_page_config(
     page_title="Customer Segmentation | RetailPulse",
     page_icon="🎯",
     layout="wide"
 )
+
+require_login()
 
 st.markdown("""
 <style>

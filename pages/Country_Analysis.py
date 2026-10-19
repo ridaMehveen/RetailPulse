@@ -2,13 +2,14 @@
 
 import streamlit as st
 import pandas as pd
+from auth import require_login
 
 st.set_page_config(
     page_title="Country Analysis | RetailPulse",
     page_icon="🌍",
     layout="wide"
 )
-
+require_login()
 st.markdown("""
 <style>
 .stApp {

@@ -1,6 +1,7 @@
 
 import streamlit as st
 import pandas as pd
+from auth import require_login
 
 st.set_page_config(
     page_title="Product Analytics | RetailPulse",
@@ -8,42 +9,101 @@ st.set_page_config(
     layout="wide"
 )
 
+require_login()
+
+# ---------- RETAILPULSE NAVY THEME ----------
 st.markdown("""
 <style>
 .stApp {
     background: linear-gradient(135deg, #0b1020, #111a30, #17152d);
     color: #f1f5f9;
 }
-.block-container { padding-top: 2rem; max-width: 1500px; }
-[data-testid="stSidebar"] { background: #0a1020; }
+
+.block-container {
+    padding-top: 2rem;
+    max-width: 1500px;
+}
+
+[data-testid="stSidebar"] {
+    background: #0a1020;
+}
+
 [data-testid="stSidebar"] p,
 [data-testid="stSidebar"] label,
-[data-testid="stSidebar"] span { color: #e2e8f0 !important; }
+[data-testid="stSidebar"] span {
+    color: #e2e8f0;
+}
+
+/* Metric cards */
 div[data-testid="stMetric"] {
     background: #151f35;
     border: 1px solid #303d5a;
     padding: 16px;
     border-radius: 14px;
 }
+
+/* Readable input labels */
+[data-testid="stWidgetLabel"] p,
+[data-testid="stWidgetLabel"] label {
+    color: #f1f5f9 !important;
+}
+
+/* High-contrast CSV download button */
+.stDownloadButton button {
+    background: linear-gradient(90deg, #8b5cf6, #6d5ce8) !important;
+    color: #ffffff !important;
+    border: 1px solid #a78bfa !important;
+    border-radius: 10px !important;
+    font-weight: 700 !important;
+    opacity: 1 !important;
+    min-height: 44px;
+}
+
+.stDownloadButton button p,
+.stDownloadButton button span,
+.stDownloadButton button div {
+    color: #ffffff !important;
+    opacity: 1 !important;
+    font-weight: 700 !important;
+}
+
+.stDownloadButton button:hover {
+    background: linear-gradient(90deg, #7c3aed, #5b4bd5) !important;
+    border-color: #c4b5fd !important;
+}
+
+.stDownloadButton button:focus {
+    outline: 2px solid #c4b5fd !important;
+    outline-offset: 2px;
+}
 </style>
 """, unsafe_allow_html=True)
 
 
+# ---------- LOAD DATA ----------
 @st.cache_data
 def load_data():
     df = pd.read_csv("retailpulse_cleaned.csv.gz")
-    df["InvoiceDate"] = pd.to_datetime(df["InvoiceDate"], dayfirst=True)
+    df["InvoiceDate"] = pd.to_datetime(
+        df["InvoiceDate"], dayfirst=True
+    )
     df["Sales"] = df["Quantity"] * df["Price"]
     return df
 
 
 df = load_data()
-sales = df[~df["Invoice"].astype(str).str.startswith("C")].copy()
+
+# Exclude cancellation invoices
+sales = df[
+    ~df["Invoice"].astype(str).str.startswith("C")
+].copy()
 
 st.title("🛍️ Product Analytics")
-st.caption("Discover top products, sales patterns, and product performance.")
+st.caption(
+    "Discover top products, sales patterns, and product performance."
+)
 
-# Filters
+# ---------- FILTERS ----------
 c1, c2 = st.columns(2)
 
 with c1:
@@ -60,6 +120,7 @@ with c1:
 
 with c2:
     products = sorted(sales["Description"].dropna().unique())
+
     selected_products = st.multiselect(
         "Choose products (optional)",
         products,
@@ -71,17 +132,21 @@ filtered = sales.copy()
 if isinstance(date_range, (tuple, list)) and len(date_range) == 2:
     start_date, end_date = date_range
     filtered = filtered[
-        filtered["InvoiceDate"].dt.date.between(start_date, end_date)
+        filtered["InvoiceDate"].dt.date.between(
+            start_date, end_date
+        )
     ]
 
 if selected_products:
-    filtered = filtered[filtered["Description"].isin(selected_products)]
+    filtered = filtered[
+        filtered["Description"].isin(selected_products)
+    ]
 
 if filtered.empty:
     st.warning("No product sales found for these filters.")
     st.stop()
 
-# Product summary
+# ---------- PRODUCT SUMMARY ----------
 product_summary = (
     filtered.groupby("Description")
     .agg(
@@ -105,34 +170,55 @@ k4.metric("Orders", f"{total_orders:,}")
 
 st.divider()
 
+# ---------- TOP PRODUCTS ----------
 left, right = st.columns(2)
 
 with left:
     st.subheader("🏆 Top 10 Products by Revenue")
+
     top_revenue = (
         product_summary.nlargest(10, "Revenue")
         .sort_values("Revenue")
     )
-    st.bar_chart(top_revenue, x="Description", y="Revenue", height=400)
+
+    st.bar_chart(
+        top_revenue,
+        x="Description",
+        y="Revenue",
+        height=400
+    )
 
 with right:
     st.subheader("📦 Top 10 Products by Units")
+
     top_units = (
         product_summary.nlargest(10, "Units")
         .sort_values("Units")
     )
-    st.bar_chart(top_units, x="Description", y="Units", height=400)
+
+    st.bar_chart(
+        top_units,
+        x="Description",
+        y="Units",
+        height=400
+    )
 
 st.divider()
 
+# ---------- MONTHLY REVENUE ----------
 st.subheader("📈 Monthly Revenue for Top Products")
 
 top_product_names = (
     product_summary.nlargest(5, "Revenue")["Description"].tolist()
 )
 
-monthly = filtered[filtered["Description"].isin(top_product_names)].copy()
-monthly["Month"] = monthly["InvoiceDate"].dt.to_period("M").astype(str)
+monthly = filtered[
+    filtered["Description"].isin(top_product_names)
+].copy()
+
+monthly["Month"] = (
+    monthly["InvoiceDate"].dt.to_period("M").astype(str)
+)
 
 monthly = (
     monthly.groupby(["Month", "Description"])["Sales"]
@@ -146,11 +232,15 @@ if not monthly.empty:
         columns="Description",
         values="Sales"
     ).fillna(0)
+
     st.line_chart(chart, height=350)
 
+# ---------- PERFORMANCE TABLE ----------
 st.subheader("📋 Product Performance Table")
 
-product_summary = product_summary.sort_values("Revenue", ascending=False)
+product_summary = product_summary.sort_values(
+    "Revenue", ascending=False
+)
 
 st.dataframe(
     product_summary,
@@ -158,11 +248,18 @@ st.dataframe(
     hide_index=True
 )
 
+# ---------- CSV DOWNLOAD ----------
+csv_data = product_summary.to_csv(
+    index=False
+).encode("utf-8")
+
 st.download_button(
-    "Download product analysis CSV",
-    data=product_summary.to_csv(index=False).encode("utf-8"),
+    label="Download product analysis CSV",
+    data=csv_data,
     file_name="retailpulse_product_analysis.csv",
-    mime="text/csv"
+    mime="text/csv",
+    key="download_product_analysis",
+    use_container_width=True
 )
 
 st.caption(

@@ -1,13 +1,14 @@
 
 import streamlit as st
 import pandas as pd
+from auth import require_login
 
 st.set_page_config(
     page_title="Business Insights | RetailPulse",
     page_icon="💡",
     layout="wide"
 )
-
+require_login()
 st.markdown("""
 <style>
 .stApp {
