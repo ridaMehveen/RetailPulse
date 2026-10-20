@@ -1,6 +1,8 @@
 
 import streamlit as st
 from supabase import create_client
+from urllib.parse import parse_qs
+from streamlit_javascript import st_javascript
 
 
 def get_supabase_client():
@@ -57,7 +59,7 @@ def show_login():
 
         [data-testid="stTextInput"] label,
         [data-testid="stTextInput"] label p {
-            color: #e2e8f0 !important;
+            color: #f1f5f9 !important;
         }
 
         [data-testid="stTextInput"] input {
@@ -67,44 +69,19 @@ def show_login():
         }
 
         [data-testid="stFormSubmitButton"] button {
-            background: linear-gradient(90deg, #8b5cf6, #6d5ce8) !important;
+            background: #7c3aed !important;
+            color: #ffffff !important;
             border: none !important;
             border-radius: 12px !important;
             min-height: 48px;
+            opacity: 1 !important;
         }
 
-        [data-testid="stFormSubmitButton"] button,
         [data-testid="stFormSubmitButton"] button p {
             color: #ffffff !important;
             opacity: 1 !important;
             font-weight: 700 !important;
         }
-
-        [data-testid="stFormSubmitButton"] button:hover {
-            background: linear-gradient(90deg, #7c3aed, #5b4bd5) !important;
-        }
-        /* Force the sidebar to stay hidden on the login screen */
-body:has([data-testid="stForm"]) [data-testid="stSidebar"] {
-    display: none !important;
-}
-
-/* Improve login button contrast */
-[data-testid="stFormSubmitButton"] button {
-    background: #7c3aed !important;
-    color: #ffffff !important;
-    opacity: 1 !important;
-}
-
-[data-testid="stFormSubmitButton"] button p {
-    color: #ffffff !important;
-    opacity: 1 !important;
-}
-
-/* Improve labels */
-[data-testid="stTextInput"] label,
-[data-testid="stTextInput"] label p {
-    color: #f1f5f9 !important;
-}
         </style>
         """,
         unsafe_allow_html=True,
@@ -132,10 +109,7 @@ body:has([data-testid="stForm"]) [data-testid="stSidebar"] {
         st.markdown("Turn sales signals into smarter decisions")
 
     with right:
-        st.markdown(
-            '<div class="login-panel">',
-            unsafe_allow_html=True,
-        )
+        st.markdown('<div class="login-panel">', unsafe_allow_html=True)
         st.markdown("### Welcome back")
         st.caption("Sign in to access your retail intelligence workspace.")
 
@@ -174,12 +148,46 @@ body:has([data-testid="stForm"]) [data-testid="stSidebar"] {
                         st.rerun()
                     else:
                         st.error("Sign-in was not completed. Try again.")
-
                 except Exception:
                     st.error(
                         "Sign-in failed. Check your email, password, "
                         "and Supabase authentication settings."
                     )
+
+        with st.expander("Forgot your password?"):
+            st.write(
+                "Enter your account email and we'll send you a reset link."
+            )
+
+            with st.form("retailpulse_password_reset"):
+                reset_email = st.text_input(
+                    "Email address",
+                    key="reset_email",
+                ).strip()
+                reset_submitted = st.form_submit_button(
+                    "Send reset link",
+                    use_container_width=True,
+                )
+
+            if reset_submitted:
+                if not reset_email:
+                    st.error("Enter your email address.")
+                else:
+                    try:
+                        get_supabase_client().auth.reset_password_for_email(
+                            reset_email,
+                            {
+                                "redirect_to": (
+    "https://retailpulse-9xbtiqx3v8pkxfgalruqu8.streamlit.app/"
+),
+                            },
+                        )
+                        st.success(
+                            "Reset request submitted. Check your inbox "
+                            "and spam folder."
+                        )
+                    except Exception as e:
+                        st.error(f"Reset request failed: {e}")
 
         st.caption(
             "Need an account? Ask the RetailPulse administrator to "
@@ -187,11 +195,85 @@ body:has([data-testid="stForm"]) [data-testid="stSidebar"] {
         )
 
 
+def handle_password_recovery():
+    if st.session_state.get("rp_recovery_mode"):
+        return True
 
+    fragment = st_javascript(
+        "window.parent.location.hash",
+        key="rp_recovery_fragment",
+    )
+
+    if not isinstance(fragment, str) or not fragment.startswith("#"):
+        return False
+
+    params = parse_qs(fragment.lstrip("#"))
+    access_token = params.get("access_token", [None])[0]
+    refresh_token = params.get("refresh_token", [None])[0]
+    auth_type = params.get("type", [None])[0]
+
+    if not access_token or not refresh_token or auth_type != "recovery":
+        return False
+
+    try:
+        client = get_supabase_client()
+        client.auth.set_session(access_token, refresh_token)
+        st.session_state["rp_recovery_mode"] = True
+        st.session_state["rp_recovery_client"] = client
+        st.rerun()
+    except Exception:
+        st.error("This recovery link is invalid or expired. Request a new one.")
+        return True
+
+    return True
+
+
+def show_new_password_form():
+    st.title("Create a new password")
+    st.write("Choose a strong password for your RetailPulse account.")
+
+    with st.form("rp_new_password_form"):
+        new_password = st.text_input("New password", type="password")
+        confirm_password = st.text_input(
+            "Confirm new password",
+            type="password",
+        )
+        submitted = st.form_submit_button(
+            "Update password",
+            use_container_width=True,
+        )
+
+    if submitted:
+        if len(new_password) < 8:
+            st.error("Your password must contain at least 8 characters.")
+        elif new_password != confirm_password:
+            st.error("The passwords don't match.")
+        else:
+            try:
+                client = st.session_state["rp_recovery_client"]
+                client.auth.update_user({"password": new_password})
+
+                for key in (
+                    "rp_recovery_mode",
+                    "rp_recovery_client",
+                    "rp_access_token",
+                    "rp_refresh_token",
+                    "rp_user_email",
+                ):
+                    st.session_state.pop(key, None)
+
+                st.success("Password updated! You can now sign in.")
+                st.rerun()
+
+            except Exception as e:
+                st.error(f"Password update failed: {e}")
+
+ 
 def require_login():
     if not st.session_state.get("rp_access_token"):
         show_login()
         st.stop()
+
 
 def is_logged_in():
     return bool(st.session_state.get("rp_access_token"))
