@@ -195,6 +195,7 @@ def show_login():
         )
 
 
+
 def handle_password_recovery():
     if st.session_state.get("rp_recovery_mode"):
         return True
@@ -204,28 +205,40 @@ def handle_password_recovery():
         key="rp_recovery_fragment",
     )
 
-    if not isinstance(fragment, str) or not fragment.startswith("#"):
+    if not isinstance(fragment, str):
         return False
 
-    params = parse_qs(fragment.lstrip("#"))
+    fragment = fragment.strip()
+
+    if not fragment.startswith("#"):
+        return False
+
+    params = parse_qs(fragment[1:])
     access_token = params.get("access_token", [None])[0]
     refresh_token = params.get("refresh_token", [None])[0]
     auth_type = params.get("type", [None])[0]
 
-    if not access_token or not refresh_token or auth_type != "recovery":
+    if not access_token or not refresh_token:
+        return False
+
+    if auth_type != "recovery":
         return False
 
     try:
         client = get_supabase_client()
         client.auth.set_session(access_token, refresh_token)
+
         st.session_state["rp_recovery_mode"] = True
         st.session_state["rp_recovery_client"] = client
         st.rerun()
-    except Exception:
-        st.error("This recovery link is invalid or expired. Request a new one.")
         return True
 
-    return True
+    except Exception:
+        st.error(
+            "This recovery link is invalid or expired. "
+            "Please request a new one."
+        )
+        return True
 
 
 def show_new_password_form():
