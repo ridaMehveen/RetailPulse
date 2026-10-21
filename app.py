@@ -1,6 +1,12 @@
 
 import streamlit as st
-from auth import is_logged_in, require_login, show_login
+from auth import (
+    is_logged_in,
+    require_login,
+    show_login,
+    handle_password_recovery,
+    show_new_password_form,
+)
 
 st.set_page_config(
     page_title="RetailPulse | Retail Intelligence",
@@ -9,11 +15,18 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+
+# Handle password recovery before the normal login screen.
+if handle_password_recovery():
+    if st.session_state.get("rp_recovery_mode"):
+        show_new_password_form()
+    st.stop()
+
 # Logged out: show only the login screen.
-# Do not register dashboard pages until the user is logged in.
 if not is_logged_in():
     show_login()
     st.stop()
+
 
 # Logged in: register the existing homepage and dashboard pages.
 pages = {
