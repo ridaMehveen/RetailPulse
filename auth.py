@@ -196,6 +196,8 @@ def show_login():
 
 
 
+
+
 def handle_password_recovery():
     if st.session_state.get("rp_recovery_mode"):
         return True
@@ -214,15 +216,28 @@ def handle_password_recovery():
         return False
 
     params = parse_qs(fragment[1:])
+
+    # Handle expired or invalid recovery links.
+    if params.get("error_code", [""])[0] == "otp_expired":
+        st.error(
+            "This password-reset link has expired. "
+            "Request a new link when available."
+        )
+        return True
+
     access_token = params.get("access_token", [None])[0]
     refresh_token = params.get("refresh_token", [None])[0]
     auth_type = params.get("type", [None])[0]
 
-    if not access_token or not refresh_token:
-        return False
-
     if auth_type != "recovery":
         return False
+
+    if not access_token or not refresh_token:
+        st.error(
+            "The recovery link is incomplete or invalid. "
+            "Please request a new link."
+        )
+        return True
 
     try:
         client = get_supabase_client()
@@ -230,6 +245,7 @@ def handle_password_recovery():
 
         st.session_state["rp_recovery_mode"] = True
         st.session_state["rp_recovery_client"] = client
+
         st.rerun()
         return True
 
@@ -239,7 +255,6 @@ def handle_password_recovery():
             "Please request a new one."
         )
         return True
-
 
 def show_new_password_form():
     st.title("Create a new password")
